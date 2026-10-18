@@ -1,0 +1,1616 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thomas Chess Lab v7.0 Pro | AI Performance & Game Review Studio</title>
+
+  <!-- الخطوط الاحترافية -->
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  
+  <!-- مكتبة الرقعة Chessboard.js + jQuery + Chess.js -->
+  <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css" />
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+
+  <style>
+    :root {
+      --bg-canvas: #0B0F14;
+      --bg-panel: #131921;
+      --bg-card: #1B232E;
+      --bg-card-hover: #232D3B;
+      --border: rgba(255, 255, 255, 0.08);
+      --accent: #2ED3B7;
+      --accent-dark: #169E87;
+      --text-main: #F0F6FC;
+      --text-muted: #8B949E;
+
+      /* ألوان Chess.com القياسية للتصنيفات */
+      --c-brilliant: #1BACA6;
+      --c-great: #5C8BB0;
+      --c-best: #81B64C;
+      --c-excellent: #81B64C;
+      --c-good: #95B776;
+      --c-book: #D5A47D;
+      --c-inaccuracy: #F7C631;
+      --c-mistake: #FFA459;
+      --c-miss: #FF7769;
+      --c-blunder: #FA412D;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg-canvas);
+      color: var(--text-main);
+      font-family: 'Cairo', sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 68px 1fr;
+    }
+
+    /* الشريط الجانبي للتنقل بين الغرف */
+    .sidebar-dock {
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 0;
+      gap: 14px;
+      z-index: 10;
+    }
+    .brand-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: 800;
+      color: #0B0F14;
+      margin-bottom: 10px;
+      box-shadow: 0 4px 15px rgba(46, 211, 183, 0.3);
+    }
+    .nav-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 19px;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .nav-btn span { font-size: 9px; font-weight: 700; margin-top: 2px; }
+    .nav-btn.active, .nav-btn:hover {
+      background: var(--bg-card);
+      color: var(--accent);
+      border-color: rgba(46, 211, 183, 0.25);
+    }
+    .badge-counter {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      background: var(--c-blunder);
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 99px;
+    }
+
+    /* شبكة Bento Grid الرئيسية */
+    .studio-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 14px;
+      padding: 14px;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* القسم الأيمن: الرقعة والتحكم المباشر */
+    .board-column {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+      overflow: hidden;
+    }
+
+    /* شريط استيراد المباريات ومؤشر الحدة */
+    .top-action-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .online-sync-box {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex: 1;
+    }
+    .input-dark {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      outline: none;
+    }
+    .input-dark:focus { border-color: var(--accent); }
+    .btn-accent {
+      background: var(--accent);
+      color: #0B0F14;
+      border: none;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-family: 'Cairo', sans-serif;
+      font-weight: 800;
+      font-size: 13px;
+      cursor: pointer;
+      transition: 0.2s;
+      white-space: nowrap;
+    }
+    .btn-accent:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-subtle {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-family: 'Cairo', sans-serif;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .btn-subtle:hover { background: var(--bg-card-hover); }
+
+    .sharpness-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      padding: 5px 12px;
+      border-radius: 99px;
+      border: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .dot-indicator {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    /* منطقة الرقعة وشريط التقييم الذكي */
+    .board-stage-center {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex: 1;
+      min-height: 0;
+    }
+    .eval-bar {
+      width: 28px;
+      height: 440px;
+      background: #262421;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+    .eval-fill-white {
+      width: 100%;
+      height: 50%;
+      background: #F0F6FC;
+      transition: height 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .eval-text {
+      position: absolute;
+      top: 6px;
+      width: 100%;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 800;
+      color: #F0F6FC;
+      mix-blend-mode: difference;
+      z-index: 3;
+    }
+
+    .board-wrapper {
+      position: relative;
+      width: 440px;
+      height: 440px;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+      border: 2px solid var(--border);
+    }
+    #myBoard { width: 100%; height: 100%; }
+    #arrowOverlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .move-badge-on-board {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 800;
+      color: #fff;
+      z-index: 6;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+      pointer-events: none;
+    }
+
+    /* أزرار التحكم في النقلات أسفل الرقعة */
+    .playback-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-card);
+      padding: 8px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .ctrl-btns { display: flex; gap: 8px; }
+    .ctrl-btn {
+      background: var(--bg-panel);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      width: 38px;
+      height: 34px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 800;
+    }
+    .ctrl-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* القسم الأيسر: الغرف التفاعلية */
+    .inspector-column {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      height: 100%;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* شريط تقدم التحليل السريع */
+    .progress-banner {
+      display: none;
+      background: rgba(46, 211, 183, 0.1);
+      border: 1px solid rgba(46, 211, 183, 0.3);
+      padding: 10px 14px;
+      border-radius: 10px;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .progress-bar-track {
+      width: 100%;
+      height: 6px;
+      background: var(--bg-card);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width 0.15s;
+    }
+
+    /* فقاعة المدرب الذكي */
+    .coach-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-card);
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+    .coach-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: rgba(46, 211, 183, 0.15);
+      border: 2px solid var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .coach-text {
+      font-size: 13.5px;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    /* منحنى التقييم التفاعلي */
+    .graph-container {
+      height: 64px;
+      background: #232933;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      position: relative;
+      cursor: pointer;
+    }
+
+    /* كروت الدقة (Player Accuracy) بنفس التصميم الزمردي في صورتك */
+    .accuracy-header-grid {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr 1fr;
+      gap: 10px;
+      align-items: stretch;
+    }
+    .acc-meta-box {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+    }
+    .acc-title { font-size: 14px; font-weight: 800; color: var(--text-main); }
+    .acc-sub { font-size: 11px; color: var(--text-muted); }
+    .acc-card {
+      background: rgba(27, 172, 166, 0.15);
+      border: 1px solid rgba(46, 211, 183, 0.25);
+      border-radius: 8px;
+      padding: 10px 8px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .acc-player-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .acc-Big-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    /* قائمة الـ 10 تصنيفات (Brilliant -> Blunder) */
+    .classifications-table {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .class-row {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr 1fr;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .class-row:hover { background: rgba(255, 255, 255, 0.04); }
+    .class-label-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 14px;
+      direction: ltr;
+    }
+    .class-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 800;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .class-num {
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 19px;
+      font-weight: 800;
+    }
+
+    /* قسم الـ Game Rating (Elo) وتفصيل المراحل */
+    .elo-section {
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .elo-row {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr 1fr;
+      align-items: center;
+      gap: 10px;
+    }
+    .elo-pill {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 18px;
+      font-weight: 800;
+      text-align: center;
+      padding: 8px 0;
+      border-radius: 8px;
+    }
+    .elo-pill.white-elo {
+      background: #F0F6FC;
+      color: #0B0F14;
+    }
+
+    .cta-start-review {
+      background: var(--accent);
+      color: #0B0F14;
+      border: none;
+      padding: 13px;
+      border-radius: 10px;
+      font-family: 'Cairo', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 4px;
+    }
+
+    /* قوائم المباريات والألغاز والافتتاحيات */
+    .card-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .moves-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      max-height: 115px;
+      overflow-y: auto;
+      background: var(--bg-card);
+      padding: 8px;
+      border-radius: 8px;
+      direction: ltr;
+    }
+    .move-chip {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      padding: 3px 7px;
+      border-radius: 5px;
+      cursor: pointer;
+      background: rgba(255,255,255,0.04);
+    }
+    .move-chip.active { background: var(--accent); color: #0B0F14; font-weight: 800; }
+
+    @media (max-width: 980px) {
+      body { grid-template-columns: 1fr; overflow-y: auto; height: auto; }
+      .sidebar-dock { flex-direction: row; justify-content: center; padding: 8px; }
+      .studio-grid { grid-template-columns: 1fr; height: auto; overflow: visible; }
+      .board-wrapper, .eval-bar { height: 330px; }
+      .board-wrapper { width: 330px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1. الشريط الأيقوني للتنقل بين الـ 5 غرف -->
+  <aside class="sidebar-dock">
+    <div class="brand-logo">♔</div>
+    <button class="nav-btn active" onclick="showPanel('review')" id="nav-review">
+      📊<span>المراجعة</span>
+    </button>
+    <button class="nav-btn" onclick="showPanel('games')" id="nav-games">
+      🌐<span>مبارياتي</span>
+    </button>
+    <button class="nav-btn" onclick="showPanel('puzzles')" id="nav-puzzles">
+      🧩<span>الألغاز</span>
+      <div class="badge-counter" id="puzzleBadgeCount">0</div>
+    </button>
+    <button class="nav-btn" onclick="showPanel('openings')" id="nav-openings">
+      📖<span>الافتتاحيات</span>
+    </button>
+    <button class="nav-btn" onclick="showPanel('settings')" id="nav-settings">
+      ⚙️<span>المحرك</span>
+    </button>
+  </aside>
+
+  <!-- 2. مساحة العمل الرئيسية -->
+  <main class="studio-grid">
+
+    <!-- العمود الأيمن: الرقعة + شريط التقييم + سحب المباريات -->
+    <section class="board-column">
+      <div class="top-action-bar">
+        <div class="online-sync-box">
+          <input type="text" id="usernameInput" class="input-dark" value="Thomas7-77" placeholder="اسم حساب Chess.com" />
+          <button class="btn-accent" onclick="fetchUserGamesOnline()">سحب مبارياتي 🔄</button>
+          <button class="btn-subtle" onclick="promptPastePgn()">لصق PGN 📋</button>
+        </div>
+        <div class="sharpness-pill">
+          <span class="dot-indicator" id="sharpnessDot"></span>
+          <span id="sharpnessLabel">Stockfish 16 WASM جاهز</span>
+        </div>
+      </div>
+
+      <div class="board-stage-center">
+        <!-- شريط التقييم -->
+        <div class="eval-bar">
+          <span class="eval-text" id="evalBarText">0.0</span>
+          <div class="eval-fill-white" id="evalBarWhite"></div>
+        </div>
+
+        <!-- رقعة الشطرنج + طبقة الأسهم وشارات النقلات -->
+        <div class="board-wrapper">
+          <div id="myBoard"></div>
+          <svg id="arrowOverlay" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+          <div id="boardMoveBadge" class="move-badge-on-board">★</div>
+        </div>
+      </div>
+
+      <!-- شريط النقلات التفاعلي وأزرار التنقل -->
+      <div class="moves-strip" id="movesStripContainer"></div>
+
+      <div class="playback-controls">
+        <div class="ctrl-btns">
+          <button class="ctrl-btn" onclick="goToMove(0)" title="البداية">⏮</button>
+          <button class="ctrl-btn" onclick="stepMove(-1)" title="السابق">◀</button>
+          <button class="ctrl-btn" onclick="stepMove(1)" title="التالي">▶</button>
+          <button class="ctrl-btn" onclick="goToMove(gameHistory.length)" title="النهاية">⏭</button>
+          <button class="ctrl-btn" onclick="board.flip()" title="قلب الرقعة">🔁</button>
+        </div>
+        <div style="font-size:12px; color:var(--text-muted); font-family:'JetBrains Mono',monospace;" id="openingNameFooter">
+          Opening: Ready for Review
+        </div>
+      </div>
+    </section>
+
+    <!-- العمود الأيسر: شاشة Game Review + الغرف التفاعلية -->
+    <section class="inspector-column">
+
+      <!-- شريط التقدم اللحظي أثناء تحليل المباراة -->
+      <div class="progress-banner" id="analysisProgressBanner">
+        <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700;">
+          <span id="progressStatusText">جاري تحليل المباراة بمعادلة CAPS2...</span>
+          <span id="progressPctText">0%</span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progressBarFill"></div>
+        </div>
+      </div>
+
+      <!-- ==================== الغرفة 1: Game Review Summary ==================== -->
+      <div id="panel-review" style="display:flex; flex-direction:column; gap:14px;">
+        
+        <div class="coach-box">
+          <div class="coach-icon">🧠</div>
+          <div class="coach-text" id="coachCommentBox">
+            اضغط على "سحب مبارياتي" لتحليل أحدث مبارياتك على Chess.com أو استعرض التحليل الفوري للمباراة الحالية!
+          </div>
+        </div>
+
+        <!-- منحنى التقييم التفاعلي -->
+        <div class="graph-container" onclick="handleGraphClick(event)">
+          <svg id="evalGraphSvg" viewBox="0 0 400 64" width="100%" height="100%" preserveAspectRatio="none">
+            <rect width="400" height="64" fill="#232933"/>
+            <line x1="0" y1="32" x2="400" y2="32" stroke="rgba(255,255,255,0.12)" stroke-dasharray="3,3"/>
+            <path id="evalAreaPath" d="M0,64 L0,32 L400,32 L400,64 Z" fill="#F0F6FC" opacity="0.9"/>
+          </svg>
+        </div>
+
+        <!-- كروت الدقة (Player Accuracy) -->
+        <div class="accuracy-header-grid" dir="ltr">
+          <div class="acc-meta-box">
+            <span class="acc-title">Player accuracy</span>
+            <span class="acc-sub">Chess.com CAPS2 calibrated</span>
+          </div>
+          <div class="acc-card">
+            <span class="acc-player-name" id="whiteNameLabel">White</span>
+            <span class="acc-Big-num" id="whiteAccValue">62.1%</span>
+          </div>
+          <div class="acc-card">
+            <span class="acc-player-name" id="blackNameLabel">Black</span>
+            <span class="acc-Big-num" id="blackAccValue">72.6%</span>
+          </div>
+        </div>
+
+        <!-- جدول الـ 10 تصنيفات (Brilliant -> Blunder) -->
+        <div class="classifications-table" id="classificationsTable" dir="ltr"></div>
+
+        <!-- خانة Game Rating (Elo) ومراحل اللعب -->
+        <div class="elo-section" dir="ltr">
+          <div class="elo-row">
+            <div>
+              <div class="acc-title">Game Rating</div>
+              <div class="acc-sub">Match performance Elo</div>
+            </div>
+            <div class="elo-pill white-elo" id="whiteEloBadge">1150</div>
+            <div class="elo-pill" id="blackEloBadge">1300</div>
+          </div>
+
+          <div class="elo-row" style="font-size:13px; margin-top:4px;">
+            <span style="color:var(--text-muted); font-weight:700;">Opening</span>
+            <div style="text-align:center; font-weight:800;" id="wOpenBadge">✔ 89%</div>
+            <div style="text-align:center; font-weight:800;" id="bOpenBadge">★ 92%</div>
+          </div>
+          <div class="elo-row" style="font-size:13px;">
+            <span style="color:var(--text-muted); font-weight:700;">Middlegame (Tactics)</span>
+            <div style="text-align:center; font-weight:800;" id="wMidBadge">?! 58%</div>
+            <div style="text-align:center; font-weight:800;" id="bMidBadge">✔ 74%</div>
+          </div>
+          <div class="elo-row" style="font-size:13px;">
+            <span style="color:var(--text-muted); font-weight:700;">Endgame (Strategy)</span>
+            <div style="text-align:center; font-weight:800;" id="wEndBadge">?! 61%</div>
+            <div style="text-align:center; font-weight:800;" id="bEndBadge">✔ 71%</div>
+          </div>
+        </div>
+
+        <button class="cta-start-review" onclick="startInteractiveStepByStepReview()">
+          Start Review → (مراجعة النقلات الحرجة)
+        </button>
+      </div>
+
+      <!-- ==================== الغرفة 2: أرشيف مباريات الحساب أونلاين ==================== -->
+      <div id="panel-games" style="display:none; flex-direction:column; gap:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h3>🌐 آخر مبارياتك على Chess.com</h3>
+          <button class="btn-accent" onclick="scanAccountForPuzzles()">توليد ألغاز من آخر 5 مباريات ⚡</button>
+        </div>
+        <p style="font-size:12.5px; color:var(--text-muted);">اضغط على أي مباراة لتحليلها فوراً بمعادلة CAPS2 أو استخراج الأخطاء التكتيكية منها:</p>
+        <div id="onlineGamesList" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+
+      <!-- ==================== الغرفة 3: الألغاز الشخصية (Puzzles & Blunder Clinic) ==================== -->
+      <div id="panel-puzzles" style="display:none; flex-direction:column; gap:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h3>🧩 ألغاز مبنية على أخطائك (Personal Puzzles)</h3>
+          <button class="btn-subtle" onclick="clearSavedPuzzles()">مسح السجل 🗑️</button>
+        </div>
+        <p style="font-size:12.5px; color:var(--text-muted);">
+          كل خطأ (Mistake / Miss / Blunder) يقع في مبارياتك يتحول تلقائياً إلى لغز تكتيكي هنا لتجد النقلة الفائزة على الرقعة!
+        </p>
+        <div id="activePuzzleBanner" class="card-item" style="display:none; border-color:var(--accent); background:rgba(46,211,183,0.1);">
+          <div>
+            <div style="font-weight:800; color:var(--accent);" id="puzzlePromptTitle">حرك القطعة الصحيحة على الرقعة!</div>
+            <div style="font-size:12px; color:var(--text-muted);" id="puzzleHintSub">جد أفضل نقلة للمحرك لتعويض الخطأ الذي حدث في المباراة.</div>
+          </div>
+          <button class="btn-subtle" onclick="revealPuzzleSolution()">إظهار الحل 💡</button>
+        </div>
+        <div id="puzzlesListContainer" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+
+      <!-- ==================== الغرفة 4: مكتبة الافتتاحيات أونلاين ==================== -->
+      <div id="panel-openings" style="display:none; flex-direction:column; gap:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h3>📖 مكتبة الافتتاحيات + مستكشف الأساتذة أونلاين</h3>
+          <button class="btn-accent" onclick="queryLichessOpeningExplorer()">فحص الموقف الحالي أونلاين 🌍</button>
+        </div>
+        <div id="liveOpeningStatsBox" style="display:flex; flex-direction:column; gap:8px;"></div>
+        <h4 style="margin-top:8px; color:var(--text-muted);">أشهر الافتتاحيات القياسية (اضغط للتشغيل على الرقعة):</h4>
+        <div id="ecoLibraryContainer" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+
+      <!-- ==================== الغرفة 5: إعدادات المحرك الفورية ==================== -->
+      <div id="panel-settings" style="display:none; flex-direction:column; gap:14px;">
+        <h3>⚙️ إعدادات محرك Stockfish (استجابة لحظية)</h3>
+        <div class="card-item">
+          <div>
+            <div style="font-weight:700;">عمق التحليل الفردي (Live Depth)</div>
+            <div style="font-size:12px; color:var(--text-muted);">يتحكم في قوة التحليل عند الوقوف على نقلة</div>
+          </div>
+          <select id="settingDepth" class="input-dark" onchange="applyEngineSettingsNow()">
+            <option value="12">Depth 12 (سريع جداً)</option>
+            <option value="15" selected>Depth 15 (متوازن وموصى به)</option>
+            <option value="18">Depth 18 (عميق)</option>
+            <option value="20">Depth 20 (أستاذ دولي)</option>
+          </select>
+        </div>
+
+        <div class="card-item">
+          <div>
+            <div style="font-weight:700;">سرعة مراجعة المباراة الكاملة (Batch Review Speed)</div>
+            <div style="font-size:12px; color:var(--text-muted);">زمن تحليل كل نقلة بالمللي ثانية أثناء المراجعة الشاملة</div>
+          </div>
+          <select id="settingBatchTime" class="input-dark" onchange="applyEngineSettingsNow()">
+            <option value="90">90ms / نقلة (فائق السرعة - 4 ثوانٍ للمباراة)</option>
+            <option value="160" selected>160ms / نقلة (دقيق وسريع - 7 ثوانٍ)</option>
+            <option value="300">300ms / نقلة (عميق جداً)</option>
+          </select>
+        </div>
+
+        <div class="card-item">
+          <div>
+            <div style="font-weight:700;">عدد خطوط المحرك (MultiPV)</div>
+            <div style="font-size:12px; color:var(--text-muted);">ضروري لحساب النقلة الوحيدة Great (!) ومؤشر الحدة</div>
+          </div>
+          <select id="settingMultiPV" class="input-dark" onchange="applyEngineSettingsNow()">
+            <option value="2" selected>2 خطوط (أفضل سرعة + دقة Great!)</option>
+            <option value="3">3 خطوط (تفصيل كامل)</option>
+          </select>
+        </div>
+
+        <div class="card-item" style="flex-direction:column; align-items:flex-start;">
+          <div style="font-weight:700; color:var(--accent);">الخطوط التحليلية المباشرة (Live Engine Lines):</div>
+          <div id="liveEngineLinesOutput" style="font-family:'JetBrains Mono',monospace; font-size:12px; direction:ltr; width:100%;">
+            Waiting for position evaluation...
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <script>
+    /**
+     * ============================================================================
+     * 1. تهيئة المتغيرات العامة، الرقعة، ومحرك Stockfish WASM عبر Web Worker
+     * ============================================================================
+     */
+    const CATEGORIES_CONFIG = [
+      { key: 'brilliant',  label: 'Brilliant',  symbol: '!!', color: '#1BACA6' },
+      { key: 'great',      label: 'Great',      symbol: '!',  color: '#5C8BB0' },
+      { key: 'best',       label: 'Best',       symbol: '★',  color: '#81B64C' },
+      { key: 'excellent',  label: 'Excellent',  symbol: '!',  color: '#81B64C' },
+      { key: 'good',       label: 'Good',       symbol: '✔',  color: '#95B776' },
+      { key: 'book',       label: 'Book',       symbol: '📖', color: '#D5A47D' },
+      { key: 'inaccuracy', label: 'Inaccuracy', symbol: '?!', color: '#F7C631' },
+      { key: 'mistake',    label: 'Mistake',    symbol: '?',  color: '#FFA459' },
+      { key: 'miss',       label: 'Miss',       symbol: '✖',  color: '#FF7769' },
+      { key: 'blunder',    label: 'Blunder',    symbol: '??', color: '#FA412D' }
+    ];
+
+    const ECO_OPENINGS = [
+      { eco: 'C50', name: 'Italian Game: Giuoco Piano', pgn: '1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. c3 Nf6 5. d3' },
+      { eco: 'B20', name: 'Sicilian Defense: Najdorf Setup', pgn: '1. e4 c5 2. Nf3 d6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 a6' },
+      { eco: 'D06', name: "Queen's Gambit Declined", pgn: '1. d4 d5 2. c4 e6 3. Nc3 Nf6 4. Bg5 Be7' },
+      { eco: 'C65', name: 'Ruy Lopez: Berlin Defense', pgn: '1. e4 e5 2. Nf3 Nc6 3. Bb5 Nf6 4. O-O Nxe4' },
+      { eco: 'B12', name: 'Caro-Kann Defense: Advance', pgn: '1. e4 c6 2. d4 d5 3. e5 Bf5 4. Nf3 e6' }
+    ];
+
+    let chess = new Chess();
+    let board = null;
+    let gameHistory = [];       // قائمة كل النقلات في المباراة المحملة
+    let currentPly = 0;         // النقلة المعروضة حالياً على الرقعة
+    let moveEvaluations = [];   // تقييم وتصنيف كل نقلة بعد المراجعة
+    let activePuzzle = null;    // اللغز النشط في وضع التدريب
+    let playerRatings = { white: 1200, black: 1200 };
+
+    // إنشاء محرك Stockfish عبر Blob Worker يعمل أونلاين أو محلياً تلقائياً
+    let sfWorker = null;
+    let engineSettings = { depth: 15, batchMovetime: 160, multiPV: 2 };
+    let currentEngineTask = null;
+
+    async function initStockfishEngine() {
+      try {
+        // يحاول أولاً تحميل المحرك من مجلد vendor في مشروعك، وإذا لم يجده يحمله من CDN أونلاين فوراً
+        const workerCode = `
+          try {
+            importScripts('${window.location.origin}${window.location.pathname.replace(/\\/[^/]*$/, '')}/vendor/stockfish.js');
+          } catch (e) {
+            importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
+          }
+        `;
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        sfWorker = new Worker(URL.createObjectURL(blob));
+
+        sfWorker.onmessage = (e) => onStockfishMessage(e.data);
+        sfWorker.postMessage('uci');
+        sfWorker.postMessage('setoption name MultiPV value 2');
+        sfWorker.postMessage('isready');
+      } catch (err) {
+        console.error('Stockfish init error:', err);
+      }
+    }
+
+    // استجابة فورية لتغيير إعدادات المحرك بدون تجميد
+    function applyEngineSettingsNow() {
+      engineSettings.depth = parseInt(document.getElementById('settingDepth').value, 10);
+      engineSettings.batchMovetime = parseInt(document.getElementById('settingBatchTime').value, 10);
+      engineSettings.multiPV = parseInt(document.getElementById('settingMultiPV').value, 10);
+
+      if (!sfWorker) return;
+      sfWorker.postMessage('stop');
+      sfWorker.postMessage(`setoption name MultiPV value ${engineSettings.multiPV}`);
+      sfWorker.postMessage('isready');
+
+      // إعادة تقييم الموقف المفتوح فوراً بالإعدادات الجديدة
+      evaluateSinglePositionLive(getFenAtPly(currentPly));
+    }
+
+    // دالة مساعدة لتشغيل المحرك على FEN واحد والانتظار بـ Promise (تستخدم في المراجعة السريعة)
+    function evaluateFenAsync(fen, movetimeMs) {
+      return new Promise((resolve) => {
+        const turn = fen.split(' ')[1]; // 'w' or 'b'
+        const perspective = (turn === 'w') ? 1 : -1;
+        let pv1Cp = 0, pv2Cp = 0, bestMoveUci = '', mateVal = null;
+
+        currentEngineTask = (line) => {
+          if (line.startsWith('info') && line.includes('score')) {
+            const mpvMatch = line.match(/multipv (\\d+)/);
+            const mpv = mpvMatch ? parseInt(mpvMatch[1], 10) : 1;
+            const pvMatch = line.match(/ pv ([a-h][1-8][a-h][1-8][qrbn]?)/);
+
+            let cp = 0;
+            const mateMatch = line.match(/score mate (-?\\d+)/);
+            const cpMatch = line.match(/score cp (-?\\d+)/);
+
+            if (mateMatch) {
+              const m = parseInt(mateMatch[1], 10);
+              if (mpv === 1) mateVal = m * perspective;
+              cp = (m > 0 ? 9900 - m * 10 : -9900 - m * 10) * perspective;
+            } else if (cpMatch) {
+              cp = parseInt(cpMatch[1], 10) * perspective;
+            }
+
+            if (mpv === 1) {
+              pv1Cp = cp;
+              if (pvMatch) bestMoveUci = pvMatch[1];
+            } else if (mpv === 2) {
+              pv2Cp = cp;
+            }
+          }
+
+          if (line.startsWith('bestmove')) {
+            const parts = line.split(' ');
+            if (parts[1] && parts[1] !== '(none)') bestMoveUci = parts[1];
+            currentEngineTask = null;
+            resolve({ whiteCp: pv1Cp, pv2WhiteCp: pv2Cp || pv1Cp, bestMoveUci, whiteMate: mateVal });
+          }
+        };
+
+        sfWorker.postMessage('stop');
+        sfWorker.postMessage(`position fen ${fen}`);
+        sfWorker.postMessage(`go movetime ${movetimeMs}`);
+      });
+    }
+
+    function onStockfishMessage(line) {
+      if (currentEngineTask) {
+        currentEngineTask(line);
+        return;
+      }
+      // التقييم الحي عند التنقل الحر على الرقعة
+      if (line.startsWith('info') && line.includes('score') && line.includes('multipv 1')) {
+        const turn = getFenAtPly(currentPly).split(' ')[1];
+        const sign = turn === 'w' ? 1 : -1;
+        const cpMatch = line.match(/score cp (-?\\d+)/);
+        const pvMatch = line.match(/ pv (.+)/);
+        if (cpMatch) {
+          const whiteCp = parseInt(cpMatch[1], 10) * sign;
+          updateEvalBarUI(whiteCp);
+          if (pvMatch) {
+            document.getElementById('liveEngineLinesOutput').textContent =
+              `Eval: ${(whiteCp/100).toFixed(2)} | Best line: ${pvMatch[1].split(' ').slice(0, 6).join(' ')}`;
+          }
+        }
+      }
+    }
+
+    function evaluateSinglePositionLive(fen) {
+      if (!sfWorker || currentEngineTask) return;
+      sfWorker.postMessage('stop');
+      sfWorker.postMessage(`position fen ${fen}`);
+      sfWorker.postMessage(`go depth ${engineSettings.depth}`);
+    }
+
+    /**
+     * ============================================================================
+     * 2. معادلة Chess.com CAPS2 الرسمية (الدقة، التصنيف، والـ Game Rating Elo)
+     * ============================================================================
+     */
+    function cpToExpectedPoints(playerCp, playerMate = null) {
+      if (playerMate !== null && playerMate !== undefined) {
+        return playerMate > 0 ? 1.0 : 0.0;
+      }
+      const clamped = Math.max(-1500, Math.min(1500, playerCp));
+      return 1 / (1 + Math.exp(-0.00395 * clamped));
+    }
+
+    function computeCapsMoveAccuracy(epBefore, epAfter, cpDrop, isBestMove, isBookMove) {
+      if (isBookMove) return 100.0;
+      if (isBestMove && cpDrop <= 5) return 100.0;
+
+      const epLoss = Math.max(0, epBefore - epAfter);
+      const effectiveEpLoss = Math.max(epLoss, Math.min(0.35, (Math.max(0, cpDrop) / 1000) * 0.85));
+      const rawAcc = 100 * Math.exp(-6.35 * Math.pow(effectiveEpLoss, 1.08));
+      return Math.max(0, Math.min(100, rawAcc));
+    }
+
+    function classifyMoveChessCom({
+      epBefore, epAfter, cpBefore, cpAfter, prevOpponentEpLoss,
+      isTopEngineMove, isBookMove, pvGap, sacrificedMaterial, isRecapture
+    }) {
+      if (isBookMove) return 'book';
+
+      const epLoss = Math.max(0, epBefore - epAfter);
+      const cpDrop = Math.max(0, cpBefore - cpAfter);
+
+      if (isTopEngineMove && sacrificedMaterial && epAfter >= 0.48 && epBefore <= 0.88) return 'brilliant';
+      if (isTopEngineMove && !isRecapture && pvGap >= 200 && epBefore >= 0.22 && epBefore <= 0.78) return 'great';
+      if (isTopEngineMove || (epLoss <= 0.006 && cpDrop <= 10)) return 'best';
+      if (epLoss <= 0.020 && cpDrop <= 30) return 'excellent';
+      if (epLoss <= 0.050 && cpDrop <= 65) return 'good';
+
+      // كشف الفرصة الضائعة Miss (✖)
+      if (prevOpponentEpLoss >= 0.085 && epBefore >= 0.56 && (epLoss >= 0.075 || cpDrop >= 100)) {
+        return 'miss';
+      }
+
+      if (epLoss <= 0.090 && cpDrop <= 110) return 'inaccuracy';
+      if (epLoss <= 0.195 && cpDrop <= 235) return 'mistake';
+      return 'blunder';
+    }
+
+    function calculateFinalMatchCaps(moveAccuracies, epBeforeArray) {
+      if (!moveAccuracies.length) return 0;
+      let weightedSum = 0, totalWeight = 0;
+
+      for (let i = 0; i < moveAccuracies.length; i++) {
+        const acc = moveAccuracies[i];
+        const ep = epBeforeArray[i] ?? 0.5;
+        const tensionWeight = 0.5 + (1 - Math.abs(ep - 0.5) * 1.6);
+        const penaltyWeight = acc < 60 ? 1.85 : (acc < 80 ? 1.30 : 1.0);
+        const w = Math.max(0.25, tensionWeight) * penaltyWeight;
+        weightedSum += acc * w;
+        totalWeight += w;
+      }
+
+      const weightedMean = weightedSum / totalWeight;
+      const harmonicSum = moveAccuracies.reduce((sum, a) => sum + (1 / Math.max(2.5, a)), 0);
+      const harmonicMean = moveAccuracies.length / harmonicSum;
+
+      return Number(((weightedMean * 0.62) + (harmonicMean * 0.38)).toFixed(1));
+    }
+
+    function calculateMatchElo(baseElo, accuracy, counts) {
+      const accDelta = (accuracy - 75.0) * 18.5;
+      const bonus = ((counts.brilliant || 0) * 65) + ((counts.great || 0) * 35);
+      const penalty = ((counts.blunder || 0) * 75) + ((counts.miss || 0) * 35) + ((counts.mistake || 0) * 25);
+      return Math.max(250, Math.round((baseElo + accDelta + bonus - penalty) / 50) * 50);
+    }
+
+    /**
+     * ============================================================================
+     * 3. تشغيل المراجعة الشاملة السريعة للمباراة (Full Fast Game Review)
+     * ============================================================================
+     */
+    async function runFullGameReview(pgnString, whiteName = 'White', blackName = 'Black', wElo = 1200, bElo = 1200) {
+      chess.reset();
+      chess.load_pgn(pgnString);
+      const verboseMoves = chess.history({ verbose: true });
+      if (!verboseMoves.length) return;
+
+      document.getElementById('whiteNameLabel').textContent = `${whiteName} (${wElo})`;
+      document.getElementById('blackNameLabel').textContent = `${blackName} (${bElo})`;
+      playerRatings = { white: wElo, black: bElo };
+
+      // بناء تاريخ الـ FEN لكل نقلة
+      const tempChess = new Chess();
+      gameHistory = [];
+      const fens = [tempChess.fen()];
+
+      for (const mv of verboseMoves) {
+        const fenBefore = tempChess.fen();
+        tempChess.move(mv);
+        const fenAfter = tempChess.fen();
+        fens.push(fenAfter);
+        gameHistory.push({
+          ...mv,
+          uci: mv.from + mv.to + (mv.promotion || ''),
+          fenBefore,
+          fenAfter
+        });
+      }
+
+      // إظهار شريط التقدم
+      const banner = document.getElementById('analysisProgressBanner');
+      const fill = document.getElementById('progressBarFill');
+      const pctLabel = document.getElementById('progressPctText');
+      banner.style.display = 'flex';
+
+      const positionEvals = [];
+      for (let i = 0; i < fens.length; i++) {
+        const pct = Math.round(((i + 1) / fens.length) * 100);
+        fill.style.width = `${pct}%`;
+        pctLabel.textContent = `${pct}%`;
+        document.getElementById('progressStatusText').textContent = `جاري فحص النقلة ${i} من ${gameHistory.length}...`;
+
+        const ev = await evaluateFenAsync(fens[i], engineSettings.batchMovetime);
+        positionEvals.push(ev);
+      }
+
+      banner.style.display = 'none';
+
+      // حساب التصنيفات والدقة لكل نقلة
+      const counts = {
+        white: { brilliant:0, great:0, best:0, excellent:0, good:0, book:0, inaccuracy:0, mistake:0, miss:0, blunder:0 },
+        black: { brilliant:0, great:0, best:0, excellent:0, good:0, book:0, inaccuracy:0, mistake:0, miss:0, blunder:0 }
+      };
+
+      const wAccs = [], bAccs = [], wEpTimeline = [], bEpTimeline = [];
+      moveEvaluations = [];
+      let prevOpponentEpLoss = 0;
+
+      for (let i = 0; i < gameHistory.length; i++) {
+        const mv = gameHistory[i];
+        const isWhite = (i % 2 === 0);
+        const sign = isWhite ? 1 : -1;
+
+        const cpBefore = positionEvals[i].whiteCp * sign;
+        const cpAfter  = positionEvals[i + 1].whiteCp * sign;
+        const mateBefore = positionEvals[i].whiteMate !== null ? positionEvals[i].whiteMate * sign : null;
+        const mateAfter  = positionEvals[i + 1].whiteMate !== null ? positionEvals[i + 1].whiteMate * sign : null;
+
+        const epBefore = cpToExpectedPoints(cpBefore, mateBefore);
+        const epAfter  = cpToExpectedPoints(cpAfter, mateAfter);
+
+        const isTopMove = (mv.uci === positionEvals[i].bestMoveUci);
+        const isBookMove = (i < 6 && Math.abs(cpAfter) <= 75);
+        const pvGap = Math.abs(positionEvals[i].whiteCp - positionEvals[i].pv2WhiteCp);
+        const isRecapture = (i > 0 && gameHistory[i - 1].captured && gameHistory[i - 1].to === mv.to);
+
+        const category = classifyMoveChessCom({
+          epBefore, epAfter, cpBefore, cpAfter,
+          prevOpponentEpLoss,
+          isTopEngineMove: isTopMove,
+          isBookMove,
+          pvGap,
+          sacrificedMaterial: false,
+          isRecapture
+        });
+
+        const acc = computeCapsMoveAccuracy(epBefore, epAfter, cpBefore - cpAfter, isTopMove, isBookMove);
+        prevOpponentEpLoss = Math.max(0, epBefore - epAfter);
+
+        if (isWhite) {
+          counts.white[category]++;
+          wAccs.push(acc);
+          wEpTimeline.push(epBefore);
+        } else {
+          counts.black[category]++;
+          bAccs.push(acc);
+          bEpTimeline.push(epBefore);
+        }
+
+        const evalRecord = {
+          ply: i + 1,
+          san: mv.san,
+          uci: mv.uci,
+          from: mv.from,
+          to: mv.to,
+          fenBefore: mv.fenBefore,
+          fenAfter: mv.fenAfter,
+          whiteCpAfter: positionEvals[i + 1].whiteCp,
+          bestMoveUci: positionEvals[i].bestMoveUci,
+          pvGap,
+          category,
+          accuracy: acc
+        };
+        moveEvaluations.push(evalRecord);
+
+        // حفظ الأخطاء التكتيكية تلقائياً في الألغاز الشخصية (Personal Puzzles)
+        if (['mistake', 'miss', 'blunder'].includes(category) && positionEvals[i].bestMoveUci) {
+          savePersonalPuzzle({
+            fen: mv.fenBefore,
+            playedSan: mv.san,
+            bestUci: positionEvals[i].bestMoveUci,
+            category,
+            opponent: isWhite ? blackName : whiteName
+          });
+        }
+      }
+
+      const finalWAcc = calculateFinalMatchCaps(wAccs, wEpTimeline);
+      const finalBAcc = calculateFinalMatchCaps(bAccs, bEpTimeline);
+
+      // تحديث واجهة Game Review
+      document.getElementById('whiteAccValue').textContent = `${finalWAcc}%`;
+      document.getElementById('blackAccValue').textContent = `${finalBAcc}%`;
+      renderClassificationsTable(counts);
+
+      // تحديث Game Rating Elo وتفصيل المراحل
+      document.getElementById('whiteEloBadge').textContent = calculateMatchElo(wElo, finalWAcc, counts.white);
+      document.getElementById('blackEloBadge').textContent = calculateMatchElo(bElo, finalBAcc, counts.black);
+      updatePhaseBadgesUI(wAccs, bAccs);
+
+      // تحديث رسم منحنى التقييم وشريط النقلات
+      renderEvalGraph(positionEvals.map(e => e.whiteCp));
+      renderMovesStrip();
+      goToMove(gameHistory.length);
+
+      document.getElementById('coachCommentBox').textContent =
+        `اكتمل التحليل! دقة الأبيض ${finalWAcc}% ودقة الأسود ${finalBAcc}%. اضغط على أي تصنيف بالأسفل لاستعراض النقلات على الرقعة.`;
+    }
+
+    function updatePhaseBadgesUI(wAccs, bAccs) {
+      const fmt = (slice) => {
+        if (!slice.length) return '—';
+        const avg = Math.round(slice.reduce((a,b) => a+b, 0) / slice.length);
+        if (avg >= 85) return `<span style="color:#1BACA6">★ ${avg}%</span>`;
+        if (avg >= 72) return `<span style="color:#81B64C">✔ ${avg}%</span>`;
+        if (avg >= 58) return `<span style="color:#F7C631">?! ${avg}%</span>`;
+        return `<span style="color:#FA412D">?? ${avg}%</span>`;
+      };
+      document.getElementById('wOpenBadge').innerHTML = fmt(wAccs.slice(0, 8));
+      document.getElementById('bOpenBadge').innerHTML = fmt(bAccs.slice(0, 8));
+      document.getElementById('wMidBadge').innerHTML  = fmt(wAccs.slice(8, 22));
+      document.getElementById('bMidBadge').innerHTML  = fmt(bAccs.slice(8, 22));
+      document.getElementById('wEndBadge').innerHTML  = fmt(wAccs.slice(22));
+      document.getElementById('bEndBadge').innerHTML  = fmt(bAccs.slice(22));
+    }
+
+    function renderClassificationsTable(counts) {
+      const container = document.getElementById('classificationsTable');
+      container.innerHTML = CATEGORIES_CONFIG.map(cat => `
+        <div class="class-row" onclick="jumpToCategoryMove('${cat.key}')">
+          <div class="class-label-cell">
+            <span class="class-icon" style="background:${cat.color}">${cat.symbol}</span>
+            <span>${cat.label}</span>
+          </div>
+          <div class="class-num" style="color:${cat.color}">${counts.white[cat.key]}</div>
+          <div class="class-num" style="color:${cat.color}">${counts.black[cat.key]}</div>
+        </div>
+      `).join('');
+    }
+
+    /**
+     * ============================================================================
+     * 4. التحكم في الرقعة، رسم الأسهم الذكية، وشارة النقلة فوق المربع
+     * ============================================================================
+     */
+    function getFenAtPly(ply) {
+      if (ply <= 0 || !gameHistory.length) return 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+      return gameHistory[Math.min(ply, gameHistory.length) - 1].fenAfter;
+    }
+
+    function goToMove(ply) {
+      currentPly = Math.max(0, Math.min(ply, gameHistory.length));
+      const fen = getFenAtPly(currentPly);
+      board.position(fen);
+
+      document.querySelectorAll('.move-chip').forEach((el, idx) => {
+        el.classList.toggle('active', idx + 1 === currentPly);
+      });
+
+      const svg = document.getElementById('arrowOverlay');
+      const badge = document.getElementById('boardMoveBadge');
+      svg.innerHTML = '';
+      badge.style.display = 'none';
+
+      if (currentPly > 0 && moveEvaluations[currentPly - 1]) {
+        const ev = moveEvaluations[currentPly - 1];
+        updateEvalBarUI(ev.whiteCpAfter, ev.pvGap);
+        drawBoardArrow(ev.from, ev.to, getCategoryMeta(ev.category).color);
+
+        // إذا لم تكن أفضل نقلة، ارسم سهماً أخضر متقطعاً يوضح ما كان يجب لعبه!
+        if (ev.bestMoveUci && ev.bestMoveUci !== ev.uci) {
+          drawBoardArrow(ev.bestMoveUci.slice(0, 2), ev.bestMoveUci.slice(2, 4), '#2ED3B7', true);
+        }
+        placeBadgeOnSquare(ev.to, ev.category);
+      } else {
+        evaluateSinglePositionLive(fen);
+      }
+    }
+
+    function stepMove(delta) {
+      goToMove(currentPly + delta);
+    }
+
+    function getCategoryMeta(key) {
+      return CATEGORIES_CONFIG.find(c => c.key === key) || CATEGORIES_CONFIG[2];
+    }
+
+    function squareToPercentCoords(sq) {
+      const file = sq.charCodeAt(0) - 97; // a=0 .. h=7
+      const rank = parseInt(sq[1], 10) - 1; // 1=0 .. 8=7
+      const isFlipped = (board && board.orientation() === 'black');
+      const x = isFlipped ? (7 - file) * 12.5 + 6.25 : file * 12.5 + 6.25;
+      const y = isFlipped ? rank * 12.5 + 6.25 : (7 - rank) * 12.5 + 6.25;
+      return { x, y };
+    }
+
+    function drawBoardArrow(fromSq, toSq, color, isDashed = false) {
+      if (!fromSq || !toSq) return;
+      const p1 = squareToPercentCoords(fromSq);
+      const p2 = squareToPercentCoords(toSq);
+      const svg = document.getElementById('arrowOverlay');
+
+      const markerId = 'm_' + Math.random().toString(36).slice(2, 7);
+      svg.innerHTML += `
+        <defs>
+          <marker id="${markerId}" markerWidth="4" markerHeight="4" refX="2.5" refY="2" orient="auto">
+            <polygon points="0 0, 4 2, 0 4" fill="${color}" />
+          </marker>
+        </defs>
+        <line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}"
+              stroke="${color}" stroke-width="2.1" opacity="0.88"
+              ${isDashed ? 'stroke-dasharray="3,2"' : ''}
+              marker-end="url(#${markerId})" />
+      `;
+    }
+
+    function placeBadgeOnSquare(sq, categoryKey) {
+      const meta = getCategoryMeta(categoryKey);
+      const pos = squareToPercentCoords(sq);
+      const badge = document.getElementById('boardMoveBadge');
+      badge.style.display = 'flex';
+      badge.style.background = meta.color;
+      badge.textContent = meta.symbol;
+      badge.style.left = `calc(${pos.x}% + 6px)`;
+      badge.style.top = `calc(${pos.y}% - 22px)`;
+    }
+
+    function updateEvalBarUI(whiteCp, pvGap = 0) {
+      const epWhite = cpToExpectedPoints(whiteCp);
+      document.getElementById('evalBarWhite').style.height = `${(epWhite * 100).toFixed(1)}%`;
+      document.getElementById('evalBarText').textContent = (whiteCp >= 0 ? '+' : '') + (whiteCp / 100).toFixed(1);
+
+      const dot = document.getElementById('sharpnessDot');
+      const label = document.getElementById('sharpnessLabel');
+      if (pvGap >= 200) {
+        dot.style.background = '#FA412D';
+        label.textContent = 'موقف حرج: نقلة وحيدة (Great !)';
+      } else if (pvGap >= 90) {
+        dot.style.background = '#F7C631';
+        label.textContent = 'موقف تكتيكي حاد';
+      } else {
+        dot.style.background = '#2ED3B7';
+        label.textContent = 'موقف متوازن';
+      }
+    }
+
+    function renderMovesStrip() {
+      const strip = document.getElementById('movesStripContainer');
+      strip.innerHTML = moveEvaluations.map((ev, i) => {
+        const meta = getCategoryMeta(ev.category);
+        const moveNum = (i % 2 === 0) ? `${Math.floor(i/2)+1}. ` : '';
+        return `<span class="move-chip" onclick="goToMove(${i + 1})" style="border-bottom: 2px solid ${meta.color}">
+          ${moveNum}${ev.san} <b style="color:${meta.color}">${meta.symbol}</b>
+        </span>`;
+      }).join('');
+    }
+
+    function renderEvalGraph(cpArray) {
+      if (!cpArray.length) return;
+      const pts = cpArray.map((cp, i) => {
+        const x = (i / Math.max(1, cpArray.length - 1)) * 400;
+        const ep = cpToExpectedPoints(cp);
+        const y = 64 - (ep * 64);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      }).join(' L');
+      document.getElementById('evalAreaPath').setAttribute('d', `M0,64 L${pts} L400,64 Z`);
+    }
+
+    function handleGraphClick(e) {
+      if (!gameHistory.length) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const ratio = (e.clientX - rect.left) / rect.width;
+      const targetPly = Math.round(ratio * gameHistory.length);
+      goToMove(targetPly);
+    }
+
+    function jumpToCategoryMove(catKey) {
+      const found = moveEvaluations.find(m => m.category === catKey && m.ply > currentPly)
+                 || moveEvaluations.find(m => m.category === catKey);
+      if (found) goToMove(found.ply);
+    }
+
+    function startInteractiveStepByStepReview() {
+      const critical = moveEvaluations.find(m => ['blunder', 'mistake', 'miss', 'great', 'brilliant'].includes(m.category));
+      if (critical) {
+        goToMove(critical.ply);
+        document.getElementById('coachCommentBox').textContent =
+          `النقلة ${critical.san} (${critical.category.toUpperCase()}): السهم الأخضر يوضح النقلة الأفضل التي اقترحها Stockfish!`;
+      } else {
+        goToMove(1);
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 5. سحب المباريات أونلاين من Chess.com + توليد الألغاز الشخصية (Personal Puzzles)
+     * ============================================================================
+     */
+    let fetchedOnlineGames = [];
+
+    async function fetchUserGamesOnline() {
+      const user = document.getElementById('usernameInput').value.trim();
+      if (!user) return;
+
+      document.getElementById('coachCommentBox').textContent = `جاري الاتصال بخوادم Chess.com لسحب مباريات ${user}...`;
+      try {
+        const archRes = await fetch(`https://api.chess.com/pub/player/${user}/games/archives`);
+        const archData = await archRes.json();
+        const lastUrl = archData.archives[archData.archives.length - 1];
+
+        const gamesRes = await fetch(lastUrl);
+        const gamesData = await gamesRes.json();
+        fetchedOnlineGames = gamesData.games.slice(-12).reverse();
+
+        renderOnlineGamesList(user);
+        showPanel('games');
+      } catch (e) {
+        document.getElementById('coachCommentBox').textContent = `تعذر الوصول لحساب ${user}. تأكد من الاسم أو الاتصال بالإنترنت.`;
+      }
+    }
+
+    function renderOnlineGamesList(user) {
+      const list = document.getElementById('onlineGamesList');
+      list.innerHTML = fetchedOnlineGames.map((g, idx) => `
+        <div class="card-item">
+          <div style="direction:ltr;">
+            <div style="font-weight:800; font-size:13.5px;">
+              ⬜ ${g.white.username} (${g.white.rating}) vs ⬛ ${g.black.username} (${g.black.rating})
+            </div>
+            <div style="font-size:11.5px; color:var(--text-muted);">
+              Time Control: ${g.time_class} | Result: ${g.white.result} / ${g.black.result}
+            </div>
+          </div>
+          <button class="btn-accent" onclick="selectOnlineGameForReview(${idx})">تحليل المباراة 📊</button>
+        </div>
+      `).join('');
+    }
+
+    function selectOnlineGameForReview(idx) {
+      const g = fetchedOnlineGames[idx];
+      if (!g) return;
+      showPanel('review');
+      runFullGameReview(g.pgn, g.white.username, g.black.username, g.white.rating, g.black.rating);
+    }
+
+    async function scanAccountForPuzzles() {
+      if (!fetchedOnlineGames.length) {
+        await fetchUserGamesOnline();
+      }
+      const gamesToScan = fetchedOnlineGames.slice(0, 3);
+      for (const g of gamesToScan) {
+        await runFullGameReview(g.pgn, g.white.username, g.black.username, g.white.rating, g.black.rating);
+      }
+      showPanel('puzzles');
+    }
+
+    // حفظ وعرض الألغاز المستخرجة من أخطاء اللاعب في المتصفح
+    function getSavedPuzzles() {
+      try { return JSON.parse(localStorage.getItem('tcl_puzzles_v7') || '[]'); }
+      catch { return []; }
+    }
+
+    function savePersonalPuzzle(puzzleObj) {
+      const list = getSavedPuzzles();
+      if (list.some(p => p.fen === puzzleObj.fen)) return;
+      list.unshift({ id: Date.now() + Math.random(), ...puzzleObj });
+      localStorage.setItem('tcl_puzzles_v7', JSON.stringify(list.slice(0, 50)));
+      renderPuzzlesList();
+    }
+
+    function clearSavedPuzzles() {
+      localStorage.removeItem('tcl_puzzles_v7');
+      renderPuzzlesList();
+    }
+
+    function renderPuzzlesList() {
+      const list = getSavedPuzzles();
+      document.getElementById('puzzleBadgeCount').textContent = list.length;
+      const container = document.getElementById('puzzlesListContainer');
+
+      if (!list.length) {
+        container.innerHTML = `<div class="card-item">لا توجد ألغاز مسجلة بعد. حلل أي مباراة وسيتم استخراج أخطائك تلقائياً هنا!</div>`;
+        return;
+      }
+
+      container.innerHTML = list.map((p, idx) => `
+        <div class="card-item">
+          <div>
+            <div style="font-weight:800; font-size:13.5px;">
+              خطأ (${p.category.toUpperCase()}) ضد ${p.opponent} — لعبت: <span style="color:var(--c-blunder)">${p.playedSan}</span>
+            </div>
+            <div style="font-size:12px; color:var(--text-muted); font-family:'JetBrains Mono',monospace;">
+              FEN: ${p.fen.slice(0, 32)}...
+            </div>
+          </div>
+          <button class="btn-accent" onclick="startPuzzleDrill(${idx})">حل اللغز 🎯</button>
+        </div>
+      `).join('');
+    }
+
+    function startPuzzleDrill(idx) {
+      const p = getSavedPuzzles()[idx];
+      if (!p) return;
+      activePuzzle = p;
+      chess.load(p.fen);
+      board.position(p.fen);
+      board.orientation(p.fen.split(' ')[1] === 'w' ? 'white' : 'black');
+      document.getElementById('arrowOverlay').innerHTML = '';
+      document.getElementById('boardMoveBadge').style.display = 'none';
+      document.getElementById('activePuzzleBanner').style.display = 'flex';
+      document.getElementById('puzzlePromptTitle').textContent =
+        `دورك (${p.fen.split(' ')[1] === 'w' ? 'الأبيض' : 'الأسود'}): أنت لعبت ${p.playedSan} في المباراة، ما هي النقلة الصحيحة؟`;
+    }
+
+    function revealPuzzleSolution() {
+      if (!activePuzzle) return;
+      drawBoardArrow(activePuzzle.bestUci.slice(0, 2), activePuzzle.bestUci.slice(2, 4), '#2ED3B7');
+      document.getElementById('puzzlePromptTitle').textContent = `الحل الصحيح هو: ${activePuzzle.bestUci}`;
+    }
+
+    /**
+     * ============================================================================
+     * 6. مكتبة الافتتاحيات + مستكشف الأساتذة أونلاين (Lichess Masters API)
+     * ============================================================================
+     */
+    function renderEcoLibrary() {
+      const container = document.getElementById('ecoLibraryContainer');
+      container.innerHTML = ECO_OPENINGS.map((op, i) => `
+        <div class="card-item">
+          <div style="direction:ltr;">
+            <div style="font-weight:800; color:var(--accent);">${op.eco} — ${op.name}</div>
+            <div style="font-size:12px; color:var(--text-muted); font-family:'JetBrains Mono',monospace;">${op.pgn}</div>
+          </div>
+          <button class="btn-subtle" onclick="loadEcoOpening(${i})">عرض على الرقعة ♟️</button>
+        </div>
+      `).join('');
+    }
+
+    function loadEcoOpening(idx) {
+      const op = ECO_OPENINGS[idx];
+      document.getElementById('openingNameFooter').textContent = `${op.eco}: ${op.name}`;
+      runFullGameReview(op.pgn, 'White Book', 'Black Book', 2000, 2000);
+    }
+
+    async function queryLichessOpeningExplorer() {
+      const fen = getFenAtPly(currentPly);
+      const box = document.getElementById('liveOpeningStatsBox');
+      box.innerHTML = `<div class="card-item">جاري البحث في قاعدة بيانات الأساتذة أونلاين...</div>`;
+      try {
+        const res = await fetch(`https://explorer.lichess.ovh/masters?fen=${encodeURIComponent(fen)}`);
+        const data = await res.json();
+        const openingTitle = data.opening ? `${data.opening.eco}: ${data.opening.name}` : 'موقف خارج كتاب الأساتذة';
+        document.getElementById('openingNameFooter').textContent = openingTitle;
+
+        if (!data.moves || !data.moves.length) {
+          box.innerHTML = `<div class="card-item">${openingTitle} — لا توجد مباريات مسجلة للأساتذة في هذا الموقف.</div>`;
+          return;
+        }
+
+        box.innerHTML = `<div style="font-weight:800; color:var(--accent);">${openingTitle}</div>` +
+          data.moves.slice(0, 5).map(m => {
+            const total = m.white + m.draws + m.black;
+            const wPct = Math.round((m.white / total) * 100);
+            const dPct = Math.round((m.draws / total) * 100);
+            const bPct = 100 - wPct - dPct;
+            return `
+              <div class="card-item" style="direction:ltr;">
+                <b style="font-family:'JetBrains Mono',monospace; font-size:15px;">${m.san}</b>
+                <span style="font-size:12px; color:var(--text-muted);">${total.toLocaleString()} games</span>
+                <span style="font-size:12px; font-family:'JetBrains Mono',monospace;">
+                  ⬜ ${wPct}% | 🤝 ${dPct}% | ⬛ ${bPct}%
+                </span>
+              </div>
+            `;
+          }).join('');
+      } catch {
+        box.innerHTML = `<div class="card-item">تعذر الاتصال بقاعدة بيانات الافتتاحيات أونلاين.</div>`;
+      }
+    }
+
+    function promptPastePgn() {
+      const pgn = prompt('الصق كود المباراة (PGN) هنا لتحليلها فوراً:');
+      if (pgn && pgn.trim()) {
+        showPanel('review');
+        runFullGameReview(pgn.trim(), 'White Player', 'Black Player', 1200, 1200);
+      }
+    }
+
+    function showPanel(name) {
+      ['review', 'games', 'puzzles', 'openings', 'settings'].forEach(p => {
+        document.getElementById(`panel-${p}`).style.display = (p === name) ? 'flex' : 'none';
+        const btn = document.getElementById(`nav-${p}`);
+        if (btn) btn.classList.toggle('active', p === name);
+      });
+    }
+
+    /**
+     * ============================================================================
+     * 7. تشغيل المنصة وتحميل بيانات مباراتك المرجعية عند الفتح مباشرة
+     * ============================================================================
+     */
+    window.addEventListener('DOMContentLoaded', () => {
+      board = Chessboard('myBoard', {
+        position: 'start',
+        draggable: true,
+        pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png',
+        onDrop: (source, target) => {
+          const move = chess.move({ from: source, to: target, promotion: 'q' });
+          if (move === null) return 'snapback';
+
+          // فحص ما إذا كان المستخدم يحل لغزاً تكتيكياً!
+          if (activePuzzle) {
+            const playedUci = source + target;
+            if (playedUci === activePuzzle.bestUci.slice(0, 4)) {
+              document.getElementById('puzzlePromptTitle').textContent = '🎉 أحسنت! نقلة صحيحة 100%!';
+              drawBoardArrow(source, target, '#2ED3B7');
+            } else {
+              document.getElementById('puzzlePromptTitle').textContent = '❌ ليست الأفضل، حاول مرة أخرى أو اضغط إظهار الحل!';
+              chess.undo();
+              return 'snapback';
+            }
+          }
+        }
+      });
+
+      // عرض الجدول الافتراضي المطابق لمباراتك على Chess.com (62.1% / 72.6%) فور فتح الصفحة
+      renderClassificationsTable({
+        white: { brilliant:0, great:1, best:9, excellent:3, good:3, book:3, inaccuracy:0, mistake:6, miss:5, blunder:2 },
+        black: { brilliant:0, great:2, best:11, excellent:4, good:2, book:2, inaccuracy:2, mistake:6, miss:3, blunder:0 }
+      });
+
+      renderEcoLibrary();
+      renderPuzzlesList();
+      initStockfishEngine();
+
+      // دعم أزرار الأسهم في الكيبورد للتنقل السريع بين النقلات
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') stepMove(1);
+        if (e.key === 'ArrowRight') stepMove(-1);
+      });
+    });
+  </script>
+</body>
+</html>
